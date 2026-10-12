@@ -1,0 +1,24 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+.idea/
+*.log
+TestResults/
+coverage/
+*.trx
+
+## Secrets / local config - never commit
+.env
+*.pfx
+appsettings.Local.json
+secrets.json
+
+.vscode/
+
+## OS
+Thumbs.db
+.DS_Store
+

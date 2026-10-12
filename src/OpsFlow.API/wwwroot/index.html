@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>OpsFlow - Live Operations Desk</title>
+  <meta name="description" content="Multi-tenant ticketing with SLA tracking and live updates. Demo data only.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232563eb'/%3E%3Cpath d='M8 17l5 5 11-12' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+  <!-- ============ Login ============ -->
+  <main id="login-view" class="login" hidden>
+    <section class="card login-card">
+      <div class="brand"><span class="logo" aria-hidden="true">&#10003;</span><h1>OpsFlow</h1></div>
+      <p class="muted">Multi-tenant operations desk. Every company sees only its own tickets.</p>
+      <form id="login-form" autocomplete="on">
+        <label>Company (tenant)<input id="login-tenant" name="tenant" required maxlength="64" autocapitalize="none" spellcheck="false" placeholder="acme"></label>
+        <label>E-mail<input id="login-email" name="email" type="email" required maxlength="254" autocomplete="username" placeholder="agent1@acme.test"></label>
+        <label>Password<input id="login-password" name="password" type="password" required maxlength="128" autocomplete="current-password"></label>
+        <p id="login-error" class="error" role="alert" hidden></p>
+        <button class="btn primary" type="submit">Sign in</button>
+      </form>
+      <div id="demo-box" class="demo" hidden>
+        <p class="muted small"><strong>Demo data</strong> &middot; all accounts use the same demo password. Everything here is simulated.</p>
+        <div class="chips" id="demo-chips"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- ============ App ============ -->
+  <div id="app-view" hidden>
+    <header class="topbar">
+      <div class="brand"><span class="logo" aria-hidden="true">&#10003;</span><strong>OpsFlow</strong><span class="tenant" id="tenant-name"></span></div>
+      <div class="topbar-right">
+        <span id="live-dot" class="dot off" title="Live connection"></span><span id="live-text" class="muted small">offline</span>
+        <button class="btn ghost" id="sound-btn" type="button" title="Sound alerts for SLA breaches">Sound: off</button>
+        <button class="btn ghost" id="admin-btn" type="button" hidden>Admin</button>
+        <span class="who" id="who"></span>
+        <button class="btn ghost" id="logout-btn" type="button">Sign out</button>
+      </div>
+    </header>
+
+    <main class="container">
+      <section id="kpis" class="kpis" hidden aria-label="Operations summary"></section>
+
+      <section class="card">
+        <div class="toolbar">
+          <h2 id="list-title">Tickets</h2>
+          <div class="filters">
+            <input id="f-search" type="search" placeholder="Search title or number" maxlength="100" aria-label="Search">
+            <select id="f-status" aria-label="Status"><option value="">All statuses</option></select>
+            <select id="f-priority" aria-label="Priority"><option value="">All priorities</option></select>
+            <label class="check"><input id="f-breached" type="checkbox"> Breached</label>
+            <label class="check" id="f-mine-wrap"><input id="f-mine" type="checkbox"> Assigned to me</label>
+            <button class="btn primary" id="new-btn" type="button">New ticket</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="tickets">
+            <thead><tr><th>Ticket</th><th>Title</th><th>Priority</th><th>Status</th><th>Assignee</th><th>SLA</th></tr></thead>
+            <tbody id="tickets-body"></tbody>
+          </table>
+        </div>
+        <p id="empty" class="muted center" hidden>No tickets match.</p>
+        <div class="pager"><button class="btn ghost" id="prev" type="button">Previous</button><span id="page-info" class="muted small"></span><button class="btn ghost" id="next" type="button">Next</button></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- ============ Ticket drawer ============ -->
+  <dialog id="ticket-dialog" class="drawer" aria-labelledby="d-title">
+    <div class="drawer-head">
+      <div><span class="muted small" id="d-number"></span><h2 id="d-title"></h2></div>
+      <button class="btn ghost" id="d-close" type="button" aria-label="Close">&times;</button>
+    </div>
+    <div class="drawer-body">
+      <div class="meta" id="d-meta"></div>
+      <p id="d-desc" class="desc"></p>
+      <div id="d-resolution" class="resolution" hidden></div>
+      <div id="d-actions" class="actions"></div>
+      <div class="tabs" role="tablist" aria-label="Ticket details">
+        <button class="tab active" id="tabbtn-comments" data-tab="comments" role="tab" aria-selected="true" aria-controls="tab-comments" type="button">Comments</button>
+        <button class="tab" id="tabbtn-history" data-tab="history" role="tab" aria-selected="false" aria-controls="tab-history" type="button">Timeline</button>
+      </div>
+      <div id="tab-comments" role="tabpanel" aria-labelledby="tabbtn-comments">
+        <ul id="d-comments" class="thread"></ul>
+        <form id="comment-form">
+          <textarea id="comment-text" rows="3" maxlength="4000" required placeholder="Write a reply..."></textarea>
+          <div class="row">
+            <label class="check" id="internal-wrap"><input id="comment-internal" type="checkbox"> Internal note (staff only)</label>
+            <button class="btn primary" type="submit">Send</button>
+          </div>
+        </form>
+      </div>
+      <div id="tab-history" role="tabpanel" aria-labelledby="tabbtn-history" hidden><ol id="d-history" class="timeline"></ol></div>
+      <p id="d-error" class="error" role="alert" hidden></p>
+    </div>
+  </dialog>
+
+  <!-- ============ New ticket ============ -->
+  <dialog id="new-dialog" class="modal" aria-labelledby="new-title">
+    <form id="new-form" method="dialog">
+      <h2 id="new-title">New ticket</h2>
+      <label>Title<input id="n-title" required minlength="3" maxlength="200"></label>
+      <label>Description<textarea id="n-desc" rows="5" required minlength="3" maxlength="8000"></textarea></label>
+      <label>Priority<select id="n-priority"></select></label>
+      <p id="n-error" class="error" role="alert" hidden></p>
+      <div class="row end"><button class="btn ghost" id="n-cancel" type="button">Cancel</button><button class="btn primary" type="submit">Create</button></div>
+    </form>
+  </dialog>
+
+  <!-- ============ Generic action prompt ============ -->
+  <dialog id="action-dialog" class="modal" aria-labelledby="a-title">
+    <form id="action-form" method="dialog">
+      <h2 id="a-title"></h2>
+      <label id="a-assignee-wrap" hidden>Assignee<select id="a-assignee"></select></label>
+      <label id="a-summary-wrap" hidden>Resolution summary<textarea id="a-summary" rows="4" maxlength="4000" placeholder="What was the root cause and how was it fixed? (min. 10 characters)"></textarea></label>
+      <p id="a-error" class="error" role="alert" hidden></p>
+      <div class="row end"><button class="btn ghost" id="a-cancel" type="button">Cancel</button><button class="btn primary" type="submit">Confirm</button></div>
+    </form>
+  </dialog>
+
+  <!-- ============ Admin ============ -->
+  <dialog id="admin-dialog" class="modal wide" aria-labelledby="admin-title">
+    <div class="drawer-head"><h2 id="admin-title">Tenant admin</h2><button class="btn ghost" id="admin-close" type="button" aria-label="Close">&times;</button></div>
+    <h3>SLA policies <span class="muted small">(apply to new tickets)</span></h3>
+    <table class="mini"><thead><tr><th>Priority</th><th>First response (min)</th><th>Resolution (min)</th><th></th></tr></thead><tbody id="sla-body"></tbody></table>
+    <h3>Add user</h3>
+    <form id="user-form" class="grid-form">
+      <input id="u-name" placeholder="Full name" required minlength="2" maxlength="120">
+      <input id="u-email" type="email" placeholder="E-mail" required maxlength="254">
+      <select id="u-role"><option>Employee</option><option>Agent</option><option>TenantAdmin</option></select>
+      <input id="u-pass" type="password" placeholder="Password (min. 10)" required minlength="10" maxlength="128" autocomplete="new-password">
+      <button class="btn primary" type="submit">Add</button>
+    </form>
+    <p id="admin-msg" class="muted small" role="status"></p>
+    <h3>People</h3>
+    <ul id="user-list" class="people"></ul>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
+
+  <script src="lib/signalr.min.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
+

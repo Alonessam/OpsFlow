@@ -1,0 +1,113 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 5 * * 1" # weekly: catches newly published advisories
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      OPSFLOW_TEST_PG: Host=localhost;Port=5432;Username=postgres;Password=ci-only-password
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore (NuGet audit fails the build on vulnerable packages)
+        run: dotnet restore
+
+      - name: Build (warnings are errors)
+        run: dotnet build --no-restore -c Release
+
+      - name: Test (in-memory + real PostgreSQL 16)
+        run: dotnet test --no-build -c Release --logger "trx;LogFileName=results.trx" --results-directory TestResults
+
+      - name: Fail if any test was skipped
+        run: |
+          skipped=$(grep -c 'outcome="NotExecuted"' TestResults/results.trx || true)
+          echo "skipped tests: $skipped"
+          test "$skipped" = "0"
+
+      - name: JavaScript syntax check
+        run: node --check src/OpsFlow.API/wwwroot/js/app.js
+
+      - name: Dependency audit (including transitive)
+        run: |
+          dotnet list package --vulnerable --include-transitive 2>&1 | tee audit.txt
+          ! grep -q "has the following vulnerable packages" audit.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: TestResults/
+
+  codeql:
+    # CodeQL is free for public repositories; on a private repository it needs GitHub Advanced Security,
+    # so the job is skipped there instead of failing the whole workflow.
+    if: github.event.repository.private == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: csharp
+            build-mode: manual
+          - language: javascript-typescript
+            build-mode: none
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        if: matrix.language == 'csharp'
+        with:
+          global-json-file: global.json
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+      - name: Build for CodeQL
+        if: matrix.build-mode == 'manual'
+        run: dotnet build -c Release
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build image
+        run: docker build -t opsflow:ci .
+      - name: Start stack and probe /health
+        run: |
+          echo "JWT_KEY=$(openssl rand -base64 48)" > .env
+          docker compose up -d --build
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:8080/health; then exit 0; fi
+            sleep 2
+          done
+          docker compose logs
+          exit 1
+      - name: Tear down
+        if: always()
+        run: docker compose down -v

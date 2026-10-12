@@ -1,0 +1,37 @@
+# One command: PostgreSQL + the API (which also serves the web UI).
+#   cp .env.example .env     (then set JWT_KEY to a random 32+ character string)
+#   docker compose up --build
+# Open http://localhost:8080
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: opsflow
+      POSTGRES_USER: opsflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-opsflow-local-only}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U opsflow -d opsflow"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      ConnectionStrings__Default: Host=db;Database=opsflow;Username=opsflow;Password=${POSTGRES_PASSWORD:-opsflow-local-only}
+      Database__MigrateOnStartup: "true"
+      # Required: compose refuses to start without it instead of falling back to a weak default.
+      Jwt__Key: ${JWT_KEY:?Set JWT_KEY in .env (32+ random characters)}
+      Seed__Demo: ${SEED_DEMO:-false}
+      Platform__ApiKey: ${PLATFORM_API_KEY:-}
+
+volumes:
+  pgdata:
+

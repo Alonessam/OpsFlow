@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/OpsFlow.API/OpsFlow.API.csproj" />
+    <Project Path="src/OpsFlow.Core/OpsFlow.Core.csproj" />
+    <Project Path="src/OpsFlow.Infrastructure/OpsFlow.Infrastructure.csproj" />
+    <Project Path="src/OpsFlow.Tests/OpsFlow.Tests.csproj" />
+  </Folder>
+</Solution>
