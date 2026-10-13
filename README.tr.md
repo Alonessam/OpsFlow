@@ -10,6 +10,10 @@
 
 > **Bu depodaki her şey simülasyondur.** Şirketler, kişiler ve biletler kurgusal demo verisidir. Bu bir portföy projesidir, sertleştirilmiş bir ürün değildir; bkz. [Bilinen sınırlar](#bilinen-sınırlar).
 
+**Canlı demo: <https://opsflow-lw45.onrender.com>** - giriş sayfasındaki demo hesaplarından birine tıklayın. Ücretsiz barındırmada (Render + Neon) çalışır: 15 dakika ziyaretçi olmazsa servis uyur, bu yüzden ilk istek yaklaşık bir dakika sürebilir.
+
+![Canlı operasyon masası: KPI'lar ve canlı SLA geri sayımlı biletler](docs/screenshot-desk.jpg)
+
 ## Mühendislik öne çıkanları
 
 - **Kiracı izolasyonunu her sorgu değil, DbContext sağlar.** `ITenantEntity` uygulayan *her* varlığa (yansıma ile bulunur) global query filter bağlanır; yeni kayıtlar çağıranın kiracısıyla otomatik damgalanır ve bir `SaveChanges` interceptor'ı kiracı sınırını aşacak her yazmayı reddeder. Servislerde elle yazılmış kiracı koşulu yoktur; biri eklenirse kaynak kodu tarayan bir test `dotnet test`'i (dolayısıyla CI'ı) kırar.

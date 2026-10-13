@@ -10,6 +10,10 @@ A **multi-tenant operations desk** (ticketing + SLA tracking + live dashboard) b
 
 > **Everything in this repository is simulated.** The companies, people and tickets are fictional demo data. This is a portfolio project, not a hardened product; see [Known limitations](#known-limitations).
 
+**Live demo: <https://opsflow-lw45.onrender.com>** - click one of the demo accounts on the login page. It runs on free hosting (Render + Neon): after 15 minutes without visitors the service sleeps, so the first request can take about a minute.
+
+![The live operations desk: KPIs, tickets with live SLA countdowns](docs/screenshot-desk.jpg)
+
 ## Engineering highlights
 
 - **Tenant isolation is enforced by the DbContext, not by each query.** A global query filter is attached to *every* entity that implements `ITenantEntity` (discovered by reflection), new rows are stamped with the caller's tenant automatically, and a `SaveChanges` interceptor refuses any write that would cross a tenant boundary. Services contain no hand-written tenant predicate; a source-level test fails `dotnet test` (and therefore CI) if one appears.
