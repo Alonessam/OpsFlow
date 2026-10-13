@@ -25,7 +25,7 @@ jobs:
     env:
       OPSFLOW_TEST_PG: Host=localhost;Port=5432;Username=postgres;Password=ci-only-password
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
@@ -76,7 +76,7 @@ jobs:
           - language: javascript-typescript
             build-mode: none
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-dotnet@v4
         if: matrix.language == 'csharp'
         with:
@@ -95,7 +95,7 @@ jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build image
         run: docker build -t opsflow:ci .
       - name: Start stack and probe /health
