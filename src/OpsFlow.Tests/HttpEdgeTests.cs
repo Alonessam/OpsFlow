@@ -27,6 +27,22 @@ public class HttpEdgeTests : IClassFixture<TestApp>
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+    [Theory]
+    [InlineData("/", "text/html")]
+    [InlineData("/index.html", "text/html")]
+    [InlineData("/js/app.js", "javascript")]
+    [InlineData("/css/app.css", "text/css")]
+    [InlineData("/lib/signalr.min.js", "javascript")]
+    public async Task The_web_ui_is_served_anonymously_despite_the_catch_all_404(string path, string contentType)
+    {
+        // Regression: the catch-all endpoint matched "/" and every asset first, and static files skip a request that already
+        // has an endpoint - the whole UI answered 404 on the live site while every API test stayed green.
+        var response = await _app.Anonymous().GetAsync(path);
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        Assert.Contains(contentType, response.Content.Headers.ContentType?.ToString());
+    }
+
     [Fact]
     public async Task Unknown_paths_do_not_weaken_the_deny_by_default_rule_for_real_endpoints()
     {

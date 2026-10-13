@@ -201,6 +201,9 @@ app.Use(async (ctx, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
+// Routing is placed explicitly, after the static files. The implicit one runs first, and static files skip any request that
+// already matched an endpoint - with the catch-all 404 below that would swallow the whole UI.
+app.UseRouting();
 app.UseRateLimiter();
 app.UseAuthentication();
 app.UseMiddleware<TenantResolutionMiddleware>(); // after authentication: needs the validated principal
