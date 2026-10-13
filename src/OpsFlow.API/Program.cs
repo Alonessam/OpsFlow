@@ -40,7 +40,8 @@ if (!string.IsNullOrEmpty(platformKey) && platformKey.Length < PlatformKeyFilter
 }
 
 // Nothing here legitimately needs a large body; the default (30 MB) only helps an attacker.
-builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = 1_000_000);
+var maxBodyBytes = config.GetValue("Limits:MaxRequestBodyBytes", 1_000_000L);
+builder.WebHost.ConfigureKestrel(o => o.Limits.MaxRequestBodySize = maxBodyBytes);
 
 builder.Services.Configure<JwtOptions>(config.GetSection("Jwt"));
 builder.Services.AddSingleton<JwtTokenService>();
@@ -115,6 +116,12 @@ builder.Services.AddRateLimiter(o =>
     o.AddPolicy("platform", http => PerClient(http, config.GetValue("RateLimit:PlatformPerMinute", 10)));
 });
 
+builder.Services.AddHsts(o =>
+{
+    o.MaxAge = TimeSpan.FromDays(365);
+    o.IncludeSubDomains = false; // this host only: the app may share a parent domain with unrelated sites
+});
+
 builder.Services.Configure<ForwardedHeadersOptions>(o =>
 {
     o.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
@@ -131,6 +138,13 @@ var app = builder.Build();
 // ---- Pipeline --------------------------------------------------------------------------------------
 app.UseForwardedHeaders();
 
+// Strict-Transport-Security is only sent on requests that arrived over HTTPS (behind a trusted proxy that means
+// X-Forwarded-Proto: https), never on plain-HTTP localhost, so local development and docker compose are unaffected.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
+
 app.UseExceptionHandler(errors => errors.Run(async ctx =>
 {
     var exception = ctx.Features.Get<IExceptionHandlerFeature>()?.Error;
@@ -142,6 +156,16 @@ app.UseExceptionHandler(errors => errors.Run(async ctx =>
     if (exception is OperationCanceledException && ctx.RequestAborted.IsCancellationRequested)
     {
         ctx.Response.StatusCode = 499; // the client went away; not a server fault, nothing to log as an error
+        return;
+    }
+
+    if (exception is BadHttpRequestException badRequest)
+    {
+        // A client-side protocol problem (body over the limit, malformed request, read timeout ...): report the status
+        // Kestrel chose (e.g. 413) and keep it out of the error log, which is for OUR faults.
+        logger.LogInformation("Rejected request: {Reason}", badRequest.Message);
+        ctx.Response.StatusCode = badRequest.StatusCode;
+        await ctx.Response.WriteAsJsonAsync(new ProblemDetails { Status = badRequest.StatusCode, Title = "The request was rejected." });
         return;
     }
 
@@ -162,6 +186,15 @@ app.UseExceptionHandler(errors => errors.Run(async ctx =>
 app.Use(async (ctx, next) =>
 {
     SecurityHeaders.Apply(ctx);
+
+    // Refuse an announced oversized body up front (Kestrel enforces the same limit for chunked bodies, which carry no length).
+    if (ctx.Request.ContentLength > maxBodyBytes)
+    {
+        ctx.Response.StatusCode = StatusCodes.Status413PayloadTooLarge;
+        await ctx.Response.WriteAsJsonAsync(new ProblemDetails { Status = 413, Title = "The request body is too large." });
+        return;
+    }
+
     await next();
 });
 
@@ -183,6 +216,11 @@ app.MapGet("/api/meta", (IConfiguration cfg) => cfg.GetValue("Seed:Demo", false)
         ? Results.Ok(new { demo = true, demoPassword = DemoDataSeeder.DemoPassword })
         : Results.Ok(new { demo = false }))
     .AllowAnonymous();
+// Unknown paths: a plain 404. Without this the deny-by-default policy answers 401 for anything that does not exist,
+// which is misleading (and noisy for crawlers, favicon requests and API clients with a typo).
+// ("{**path}" instead of the default pattern, which deliberately skips paths that look like files such as /favicon.ico.)
+app.MapFallback("{**path}", () => Results.NotFound()).AllowAnonymous();
+
 app.MapGet("/health", async (OpsFlowDbContext db, CancellationToken ct) =>
         await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "healthy" }) : Results.StatusCode(503))
     .AllowAnonymous();

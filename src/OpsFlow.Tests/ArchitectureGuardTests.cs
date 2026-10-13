@@ -159,7 +159,7 @@ public class ArchitectureGuardTests
             .GroupBy(n => n)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        Assert.Equal(new Dictionary<string, int> { ["Controllers.cs"] = 2, ["Program.cs"] = 2 }, anonymous);
+        Assert.Equal(new Dictionary<string, int> { ["Controllers.cs"] = 2, ["Program.cs"] = 3 }, anonymous);
     }
 
     // ---- secrets -----------------------------------------------------------------------------------------

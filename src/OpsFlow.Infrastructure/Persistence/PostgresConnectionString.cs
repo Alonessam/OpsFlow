@@ -1,3 +1,4 @@
+using System.Data.Common;
 using Npgsql;
 
 namespace OpsFlow.Infrastructure.Persistence;
@@ -9,6 +10,28 @@ namespace OpsFlow.Infrastructure.Persistence;
 /// </summary>
 public static class PostgresConnectionString
 {
+    /// <summary>
+    /// <see cref="Normalize"/> plus the defaults this app wants: Kerberos/GSS encryption is not used here, but Npgsql would
+    /// still try to load the native GSSAPI library on every Linux host and log a confusing error when it is missing
+    /// (it is, in the slim container image). Turning the probe off removes the noise and a pointless library load.
+    /// An explicit "Gss Encryption Mode" in the connection string is respected.
+    /// </summary>
+    public static string Prepare(string connectionString)
+    {
+        var normalized = Normalize(connectionString);
+        var builder = new NpgsqlConnectionStringBuilder(normalized);
+
+        // NpgsqlConnectionStringBuilder reports every known keyword as present, so ask a plain builder what was really written.
+        var written = new DbConnectionStringBuilder { ConnectionString = normalized };
+        var chose = written.ContainsKey("Gss Encryption Mode") || written.ContainsKey("GssEncryptionMode") || written.ContainsKey("GSS Encryption Mode");
+        if (!chose)
+        {
+            builder.GssEncryptionMode = GssEncryptionMode.Disable;
+        }
+
+        return builder.ConnectionString;
+    }
+
     public static string Normalize(string connectionString)
     {
         var trimmed = connectionString.Trim();

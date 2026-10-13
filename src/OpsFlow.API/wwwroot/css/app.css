@@ -96,6 +96,8 @@ textarea { resize: vertical; }
 .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
 .chip { font: inherit; font-size: .82rem; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--text); cursor: pointer; }
 .chip:hover { border-color: var(--primary); }
+.chip:disabled, .btn:disabled { opacity: .55; cursor: progress; }
+body.busy { cursor: progress; }
 
 /* ---- shell ---- */
 .topbar { position: sticky; top: 0; z-index: 5; display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }

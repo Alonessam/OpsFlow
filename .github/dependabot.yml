@@ -4,10 +4,17 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      # One pull request per week for the test tooling instead of one per package.
+      test-tooling:
+        patterns: ["xunit*", "Microsoft.NET.Test.Sdk", "coverlet.*", "Microsoft.AspNetCore.Mvc.Testing", "Microsoft.AspNetCore.SignalR.Client"]
   - package-ecosystem: github-actions
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: docker
     directory: "/"
     schedule:
@@ -16,3 +23,8 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      # A PostgreSQL major upgrade is a data migration (pg_upgrade / dump-restore), not a version bump: the data directory
+      # layout of the image changes and existing volumes stop working. Do it deliberately, never via an automatic PR.
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]

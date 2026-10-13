@@ -25,8 +25,8 @@ jobs:
     env:
       OPSFLOW_TEST_PG: Host=localhost;Port=5432;Username=postgres;Password=ci-only-password
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         with:
           global-json-file: global.json
 
@@ -53,7 +53,7 @@ jobs:
           dotnet list package --vulnerable --include-transitive 2>&1 | tee audit.txt
           ! grep -q "has the following vulnerable packages" audit.txt
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: test-results
@@ -76,26 +76,26 @@ jobs:
           - language: javascript-typescript
             build-mode: none
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-dotnet@v6
         if: matrix.language == 'csharp'
         with:
           global-json-file: global.json
-      - uses: github/codeql-action/init@v3
+      - uses: github/codeql-action/init@v4
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
       - name: Build for CodeQL
         if: matrix.build-mode == 'manual'
         run: dotnet build -c Release
-      - uses: github/codeql-action/analyze@v3
+      - uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ matrix.language }}"
 
   docker:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build image
         run: docker build -t opsflow:ci .
       - name: Start stack and probe /health

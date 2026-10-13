@@ -1,8 +1,8 @@
 # OpsFlow
 
-![CI](https://github.com/Alonessam/OpsFlow/actions/workflows/ci.yml/badge.svg)
-![.NET 10](https://img.shields.io/badge/.NET-10-512bd4)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![CI](https://github.com/Alonessam/OpsFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Alonessam/OpsFlow/actions/workflows/ci.yml)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512bd4)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 **English** | [Türkçe](README.tr.md)
 
@@ -205,7 +205,7 @@ Default SLA targets (editable per tenant):
 | Lost updates | Optimistic concurrency `Version` -> `409`; a rejected stale write leaves nothing in the audit trail |
 | Injection / XSS | EF parameterisation; UI renders with `textContent` only; strict CSP (`script-src 'self'`), `nosniff`, `frame-ancestors 'none'` - re-applied on error responses; `Cache-Control: no-store` on API data |
 | Weak or leaked secrets | App refuses to start with a short or repetitive JWT key, with the committed development key outside Development, or with a platform key under 16 characters; no secrets in `appsettings.json` (tested); compose requires `JWT_KEY`; demo data is off unless asked for |
-| Abuse of anonymous endpoints | Login and platform endpoints are rate-limited; the platform key is checked before the body is read; request bodies are capped at 1 MB |
+| Abuse of anonymous endpoints | Login and platform endpoints are rate-limited; the platform key is checked before the body is read; request bodies are capped at 1 MB (`413`); unknown paths are a plain `404`; HSTS behind a trusted HTTPS proxy |
 | Vulnerable dependencies | NuGet audit fails the build; CI re-audits weekly |
 
 ## Known limitations
@@ -217,7 +217,7 @@ This is honest about what it is not:
 - **SLA uses wall-clock minutes.** No business hours, holidays or timezones. The sweep re-reads every open ticket of every tenant each interval (batch-limited, with a warning when the limit is hit); fine for a demo, it would need a smarter query at scale.
 - **Single node.** SignalR groups and the access cache live in memory; scaling out needs a Redis backplane, shared revocation and a shared rate limiter. Connection revocation and cache eviction act on the node that handled the request.
 - **JWT lives in `sessionStorage`.** The strict CSP reduces XSS risk, but an HttpOnly-cookie flow with refresh-token rotation would be stronger. Tokens last 30 minutes. For WebSockets the token travels in the query string of the hub URL (browsers cannot set headers there), which can end up in proxy logs.
-- **TLS is the proxy's job.** The container speaks plain HTTP and sets no HSTS or redirect. Set `Proxy__TrustForwardedHeaders=true` **only** behind a trusted proxy; otherwise clients can spoof their IP and dodge the rate limiter - and behind a proxy without it, every client shares one IP and one login bucket.
+- **TLS is the proxy's job.** The container speaks plain HTTP and does not redirect; it sends `Strict-Transport-Security` only for requests that arrived over HTTPS behind a trusted proxy. Set `Proxy__TrustForwardedHeaders=true` **only** behind a trusted proxy; otherwise clients can spoof their IP and dodge the rate limiter - and behind a proxy without it, every client shares one IP and one login bucket. (Tests cover both cases, including a forged `X-Forwarded-For`.)
 - **The lockout can be abused.** Five wrong guesses against a known e-mail lock that account for 15 minutes; an attacker can keep a known account locked. That is the usual trade-off of per-account lockout.
 - **The platform key is a static shared secret.** Fine for a demo bootstrap; a real operator plane would use proper identity. There is no endpoint to suspend a tenant (the access check honours `IsActive`, but it can only be flipped in the database).
 - **Audit scope is the ticket.** SLA-policy edits and user (de)activations are not recorded. Tickets assigned to an agent who is later deactivated stay assigned until someone reassigns them.

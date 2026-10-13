@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -12,6 +13,19 @@ using OpsFlow.Core.Contracts;
 using OpsFlow.Core.Domain;
 
 namespace OpsFlow.Tests.Support;
+
+internal sealed class RemotePeerFilter(System.Net.IPAddress address) : IStartupFilter
+{
+    public Action<IApplicationBuilder> Configure(Action<IApplicationBuilder> next) => app =>
+    {
+        app.Use(async (context, nextMiddleware) =>
+        {
+            context.Connection.RemoteIpAddress = address;
+            await nextMiddleware();
+        });
+        next(app);
+    };
+}
 
 public sealed class FakeClock : TimeProvider
 {
@@ -61,21 +75,25 @@ public sealed class TestApp : WebApplicationFactory<Program>
     private readonly bool _realPublisher;
     private readonly string? _postgres;
     private readonly bool _seedDemo;
+    private readonly bool _trustProxy;
+    private readonly string? _remoteIp;
 
     // Tokens are issued by the fake clock (Jan 2026) but SignalR checks their expiry against the real clock
     // when it closes sockets on expiry, so the default lifetime is long enough to still be valid "now".
     public const int LongLivedMinutes = 2_000_000;
 
-    public TestApp() : this(10_000, 10_000, true, LongLivedMinutes, false, null, false)
+    public TestApp() : this(10_000, 10_000, true, LongLivedMinutes, false, null, false, false, null)
     {
     }
 
     public static TestApp With(int loginLimit = 10_000, bool platformEnabled = true, int jwtMinutes = LongLivedMinutes,
-        bool realPublisher = false, string? postgres = null, int platformLimit = 10_000, bool seedDemo = false) =>
-        new(loginLimit, platformLimit, platformEnabled, jwtMinutes, realPublisher, postgres, seedDemo);
+        bool realPublisher = false, string? postgres = null, int platformLimit = 10_000, bool seedDemo = false, bool trustProxy = false, string? remoteIp = null) =>
+        new(loginLimit, platformLimit, platformEnabled, jwtMinutes, realPublisher, postgres, seedDemo, trustProxy, remoteIp);
 
-    private TestApp(int loginLimit, int platformLimit, bool platformEnabled, int jwtMinutes, bool realPublisher, string? postgres, bool seedDemo)
+    private TestApp(int loginLimit, int platformLimit, bool platformEnabled, int jwtMinutes, bool realPublisher, string? postgres, bool seedDemo, bool trustProxy, string? remoteIp)
     {
+        _trustProxy = trustProxy;
+        _remoteIp = remoteIp;
         _loginLimit = loginLimit;
         _platformLimit = platformLimit;
         _platformEnabled = platformEnabled;
@@ -111,11 +129,19 @@ public sealed class TestApp : WebApplicationFactory<Program>
         builder.UseSetting("Platform:ApiKey", _platformEnabled ? PlatformKey : "");
         builder.UseSetting("RateLimit:PlatformPerMinute", _platformLimit.ToString());
         builder.UseSetting("Seed:Demo", _seedDemo ? "true" : "false");
+        builder.UseSetting("Proxy:TrustForwardedHeaders", _trustProxy ? "true" : "false");
 
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
+            if (_remoteIp is not null)
+            {
+                // The in-memory test server has no real peer address. Give the connection one, so that forwarded-header and
+                // per-IP rate-limit behaviour can be tested as it happens behind a proxy (default: loopback = trusted).
+                services.AddTransient<IStartupFilter>(_ => new RemotePeerFilter(System.Net.IPAddress.Parse(_remoteIp)));
+            }
+
             if (!_realPublisher)
             {
                 services.RemoveAll<ITicketEventPublisher>();

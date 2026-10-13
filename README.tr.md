@@ -1,8 +1,8 @@
 # OpsFlow
 
-![CI](https://github.com/Alonessam/OpsFlow/actions/workflows/ci.yml/badge.svg)
-![.NET 10](https://img.shields.io/badge/.NET-10-512bd4)
-![License: MIT](https://img.shields.io/badge/license-MIT-green)
+[![CI](https://github.com/Alonessam/OpsFlow/actions/workflows/ci.yml/badge.svg)](https://github.com/Alonessam/OpsFlow/actions/workflows/ci.yml)
+[![.NET 10](https://img.shields.io/badge/.NET-10-512bd4)](https://dotnet.microsoft.com/download/dotnet/10.0)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 [English](README.md) | **Türkçe**
 
@@ -205,7 +205,7 @@ Varsayılan SLA hedefleri (kiracı başına düzenlenebilir):
 | Kayıp güncelleme | İyimser eşzamanlılık `Version` -> `409`; reddedilen eski yazma denetim izinde iz bırakmaz |
 | Enjeksiyon / XSS | EF parametreleri; arayüz yalnızca `textContent` ile çizer; sıkı CSP (`script-src 'self'`), `nosniff`, `frame-ancestors 'none'` (hata yanıtlarında da yeniden uygulanır); API verisinde `Cache-Control: no-store` |
 | Zayıf veya sızan sırlar | JWT anahtarı kısa/tekrarlıysa, repoda duran geliştirme anahtarı Development dışında kullanılırsa veya platform anahtarı 16 karakterden kısaysa uygulama açılmaz; `appsettings.json`'da sır yok (test edilmiştir); compose `JWT_KEY` ister; demo, istenmedikçe kapalıdır |
-| Anonim uçların kötüye kullanımı | Giriş ve platform uçları hız sınırlıdır; platform anahtarı gövde okunmadan önce kontrol edilir; istek gövdesi 1 MB ile sınırlıdır |
+| Anonim uçların kötüye kullanımı | Giriş ve platform uçları hız sınırlıdır; platform anahtarı gövde okunmadan önce kontrol edilir; istek gövdesi 1 MB ile sınırlıdır (`413`); bilinmeyen yollar düz `404` döner; güvenilir HTTPS proxy arkasında HSTS |
 | Zafiyetli bağımlılık | NuGet audit derlemeyi kırar; CI haftalık yeniden tarar |
 
 ## Bilinen sınırlar
@@ -217,7 +217,7 @@ Ne olmadığı konusunda dürüst olmak gerekirse:
 - **SLA duvar saati dakikası kullanır.** Mesai saati, tatil veya saat dilimi yok. Tarama her aralıkta tüm kiracıların açık biletlerini yeniden okur (parti sınırlı, sınıra ulaşınca uyarı verir); demo için yeterli, ölçekte daha akıllı bir sorgu gerekir.
 - **Tek düğüm.** SignalR grupları ve erişim önbelleği bellektedir; ölçeklemek için Redis backplane, paylaşımlı iptal ve paylaşımlı hız sınırlayıcı gerekir. Bağlantı kesme ve önbellek silme, isteği işleyen düğümde etkilidir.
 - **JWT `sessionStorage`'da durur.** Sıkı CSP XSS riskini azaltır, ancak HttpOnly cookie + refresh token rotasyonu daha güçlü olurdu. Token'lar 30 dakika geçerlidir. WebSocket'te token hub URL'sinin sorgu dizesinde taşınır (tarayıcılar orada başlık koyamaz); bu proxy günlüklerine düşebilir.
-- **TLS proxy'nin işidir.** Konteyner düz HTTP konuşur, HSTS veya yönlendirme yoktur. `Proxy__TrustForwardedHeaders=true` değerini **yalnızca** güvenilir bir proxy'nin arkasında verin; aksi halde istemciler IP'lerini taklit edip hız sınırlayıcıyı aşabilir. Proxy'nin arkasında bu ayar olmadan ise tüm istemciler tek IP ve tek giriş kovası paylaşır.
+- **TLS proxy'nin işidir.** Konteyner düz HTTP konuşur ve yönlendirme yapmaz; `Strict-Transport-Security` başlığını yalnızca güvenilir bir proxy'nin arkasında HTTPS ile gelen isteklere gönderir. `Proxy__TrustForwardedHeaders=true` değerini **yalnızca** güvenilir bir proxy'nin arkasında verin; aksi halde istemciler IP'lerini taklit edip hız sınırlayıcıyı aşabilir. Proxy'nin arkasında bu ayar olmadan ise tüm istemciler tek IP ve tek giriş kovası paylaşır. (Testler her iki durumu, sahte `X-Forwarded-For` dahil, kapsar.)
 - **Kilitleme kötüye kullanılabilir.** Bilinen bir e-postaya karşı beş yanlış tahmin o hesabı 15 dakika kilitler; saldırgan bilinen bir hesabı kilitli tutabilir. Hesap başına kilitlemenin olağan ödünleşimidir.
 - **Platform anahtarı statik paylaşılan bir sırdır.** Demo başlangıcı için uygun; gerçek bir operatör düzlemi uygun kimlik kullanırdı. Kiracıyı askıya alan bir uç yok (erişim kontrolü `IsActive`'i dikkate alır ama yalnızca veritabanında değiştirilebilir).
 - **Denetim kapsamı biletlerdir.** SLA politikası düzenlemeleri ve kullanıcı (de)aktivasyonları kaydedilmez. Sonradan pasifleştirilen bir ajana atanmış biletler, biri yeniden atayana kadar ona atanmış kalır.

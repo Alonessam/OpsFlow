@@ -35,7 +35,7 @@ public static class DependencyInjection
                     break;
                 case "postgres":
                     options.UseNpgsql(
-                        PostgresConnectionString.Normalize(
+                        PostgresConnectionString.Prepare(
                             config.GetConnectionString("Default") is { Length: > 0 } cs
                                 ? cs
                                 : throw new InvalidOperationException("ConnectionStrings:Default is not configured.")),

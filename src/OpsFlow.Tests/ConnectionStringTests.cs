@@ -54,6 +54,17 @@ public class ConnectionStringTests
     public void Key_value_strings_pass_through_untouched(string connectionString) =>
         Assert.Equal(connectionString, PostgresConnectionString.Normalize(connectionString));
 
+    [Fact]
+    public void Prepare_turns_off_the_gss_probe_unless_the_caller_chose_otherwise()
+    {
+        Assert.Equal(GssEncryptionMode.Disable,
+            new NpgsqlConnectionStringBuilder(PostgresConnectionString.Prepare("Host=h;Database=d;Username=u;Password=p")).GssEncryptionMode);
+        Assert.Equal(GssEncryptionMode.Disable,
+            new NpgsqlConnectionStringBuilder(PostgresConnectionString.Prepare("postgres://u:p@h/d?sslmode=require")).GssEncryptionMode);
+        Assert.Equal(GssEncryptionMode.Prefer,
+            new NpgsqlConnectionStringBuilder(PostgresConnectionString.Prepare("Host=h;Database=d;Username=u;Password=p;Gss Encryption Mode=Prefer")).GssEncryptionMode);
+    }
+
     [Theory]
     [InlineData("postgres://")]
     [InlineData("postgresql:///onlypath")]

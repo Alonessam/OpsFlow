@@ -142,15 +142,24 @@
     showError($('login-error'), expired ? 'Your session expired. Please sign in again.' : '');
   }
 
+  /** Password hashing and a cold database can make sign-in take a few seconds: show that something is happening. */
+  function setSigningIn(on) {
+    const submit = document.querySelector('#login-form button[type="submit"]');
+    submit.disabled = on; submit.textContent = on ? 'Signing in...' : 'Sign in';
+    document.querySelectorAll('#demo-chips .chip').forEach((c) => { c.disabled = on; });
+    document.body.classList.toggle('busy', on);
+  }
+
   async function login(slug, email, password) {
     if (state.loggingIn) return; // a double click must not start two sessions (and two live connections)
     state.loggingIn = true;
+    setSigningIn(true);
     try {
       const res = await api('POST', '/api/auth/login', { tenantSlug: slug, email, password });
       state.token = res.accessToken; state.user = res.user; state.tenant = res.tenant;
       saveSession();
       await enterApp();
-    } finally { state.loggingIn = false; }
+    } finally { state.loggingIn = false; setSigningIn(false); }
   }
 
   $('login-form').addEventListener('submit', async (e) => {
