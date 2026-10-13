@@ -245,7 +245,7 @@ Configuration is read from `appsettings*.json` and environment variables (`__` f
 | `RateLimit__PlatformPerMinute` | `10` | Platform-endpoint attempts per IP per minute |
 | `Security__BcryptWorkFactor` | `12` | BCrypt cost |
 | `Proxy__TrustForwardedHeaders` | `false` | Set `true` **only** behind a trusted reverse proxy |
-| `Proxy__ForwardLimit` | `1` | Number of proxies in front of the app; the client address is that many entries from the right of `X-Forwarded-For` (Render sits behind Cloudflare: `2`) |
+| `Proxy__ForwardLimit` | `1` | Number of proxies in front of the app; the client address is that many entries from the right of `X-Forwarded-For` (Render: `3`) |
 
 ### API overview
 

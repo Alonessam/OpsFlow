@@ -122,15 +122,15 @@ public class HttpEdgeTests : IClassFixture<TestApp>
     }
 
     [Fact]
-    public async Task Behind_two_proxies_the_limit_follows_the_real_client_even_when_the_outer_proxy_address_changes()
+    public async Task Behind_a_chain_of_proxies_the_limit_follows_the_real_client_even_when_the_outer_addresses_change()
     {
-        // Live shape (found on Render): client -> Cloudflare edge -> Render -> app. Each hop appends what it saw, so the app gets
-        // "<client-written>, <real client>, <edge>", and the edge address differs from request to request.
-        using var app = TestApp.With(loginLimit: 3, trustProxy: true, remoteIp: "203.0.113.9", proxyHops: 2);
+        // Live shape (measured on Render): client -> Cloudflare -> Render edge -> Render proxy -> app. Each hop appends what it
+        // saw, so the app gets "<client-written>, <real client>, <edge>, <internal>", and the last two vary between requests.
+        using var app = TestApp.With(loginLimit: 3, trustProxy: true, remoteIp: "203.0.113.9", proxyHops: 3);
 
         var results = new List<HttpStatusCode>();
-        for (var i = 0; i < 4; i++) results.Add(await BadLogin(app, $"6.6.6.{i}, 198.51.100.1, 172.70.0.{i + 1}"));
-        var otherClient = await BadLogin(app, "6.6.6.9, 198.51.100.2, 172.70.0.1");
+        for (var i = 0; i < 4; i++) results.Add(await BadLogin(app, $"6.6.6.{i}, 198.51.100.1, 172.70.0.{i + 1}, 10.0.0.{i + 5}"));
+        var otherClient = await BadLogin(app, "6.6.6.9, 198.51.100.2, 172.70.0.1, 10.0.0.5");
 
         Assert.Equal(HttpStatusCode.TooManyRequests, results[3]);
         Assert.Equal(HttpStatusCode.Unauthorized, otherClient);
@@ -139,11 +139,11 @@ public class HttpEdgeTests : IClassFixture<TestApp>
     [Fact]
     public async Task With_the_default_single_proxy_hop_the_outer_address_is_what_the_limit_sees()
     {
-        // Documents why Proxy:ForwardLimit exists: one hop assumed, two present -> the changing edge address is the key.
+        // Documents why Proxy:ForwardLimit exists: one hop assumed, three present -> the changing outer address is the key.
         using var app = TestApp.With(loginLimit: 3, trustProxy: true, remoteIp: "203.0.113.9", proxyHops: 1);
 
         var results = new List<HttpStatusCode>();
-        for (var i = 0; i < 4; i++) results.Add(await BadLogin(app, $"198.51.100.1, 172.70.0.{i + 1}"));
+        for (var i = 0; i < 4; i++) results.Add(await BadLogin(app, $"198.51.100.1, 172.70.0.{i + 1}, 10.0.0.{i + 5}"));
 
         Assert.DoesNotContain(HttpStatusCode.TooManyRequests, results);
     }

@@ -245,7 +245,7 @@ Yapılandırma `appsettings*.json` ve ortam değişkenlerinden okunur (iç içe 
 | `RateLimit__PlatformPerMinute` | `10` | IP başına dakikada platform ucu denemesi |
 | `Security__BcryptWorkFactor` | `12` | BCrypt maliyeti |
 | `Proxy__TrustForwardedHeaders` | `false` | **Yalnızca** güvenilir bir ters vekilin arkasında `true` yapın |
-| `Proxy__ForwardLimit` | `1` | Uygulamanın önündeki proxy sayısı; istemci adresi `X-Forwarded-For` içinde sağdan o kadar uzaktaki girdidir (Render, Cloudflare'in arkasındadır: `2`) |
+| `Proxy__ForwardLimit` | `1` | Uygulamanın önündeki proxy sayısı; istemci adresi `X-Forwarded-For` içinde sağdan o kadar uzaktaki girdidir (Render: `3`) |
 
 ### API özeti
 
