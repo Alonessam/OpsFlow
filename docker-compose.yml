@@ -4,7 +4,7 @@
 # Open http://localhost:8080
 services:
   db:
-    image: postgres:16
+    image: postgres:18
     environment:
       POSTGRES_DB: opsflow
       POSTGRES_USER: opsflow
