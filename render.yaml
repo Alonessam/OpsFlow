@@ -20,5 +20,7 @@ services:
         value: "true"
       - key: Proxy__TrustForwardedHeaders   # Render's load balancer terminates TLS and sets X-Forwarded-*
         value: "true"
+      - key: Security__BcryptWorkFactor   # the free instance has a fraction of a CPU; 10 is still the OWASP minimum
+        value: "10"
       - key: Seed__Demo          # PUBLIC DEMO: publishes the demo password on the login page. Set to "false" for anything real.
         value: "true"

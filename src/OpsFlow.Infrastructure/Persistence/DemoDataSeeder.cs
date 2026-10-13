@@ -21,6 +21,8 @@ public sealed class DemoDataSeeder(
 {
     public const string DemoPassword = "Demo!Passw0rd1";
 
+    private string? _demoPasswordHash;
+
     public async Task SeedAsync(CancellationToken ct = default)
     {
         tenantContext.UseSystem();
@@ -58,7 +60,9 @@ public sealed class DemoDataSeeder(
             Email = $"{label}@{slug}.test",
             FullName = first,
             Role = role,
-            PasswordHash = hasher.Hash(DemoPassword),
+            // Every demo account shares one published password, so one hash serves them all (bcrypt is deliberately
+            // slow; hashing it ten times would only delay start-up on small hosts).
+            PasswordHash = _demoPasswordHash ??= hasher.Hash(DemoPassword),
             CreatedAt = now
         };
 
