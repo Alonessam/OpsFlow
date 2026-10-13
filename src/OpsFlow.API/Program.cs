@@ -130,6 +130,11 @@ builder.Services.Configure<ForwardedHeadersOptions>(o =>
         // Behind a known reverse proxy / PaaS load balancer (Render, Fly, nginx ...).
         o.KnownIPNetworks.Clear();
         o.KnownProxies.Clear();
+
+        // How many proxies sit in front of the app (each appends the address it saw). The client address is the entry that
+        // many places from the right; anything further left was written by the client and is never trusted. Render sits
+        // behind Cloudflare, so there it is 2 - with the default of 1 the limiter would key on a changing Cloudflare edge address.
+        o.ForwardLimit = Math.Max(1, config.GetValue("Proxy:ForwardLimit", 1));
     }
 });
 

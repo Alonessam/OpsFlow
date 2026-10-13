@@ -77,6 +77,7 @@ public sealed class TestApp : WebApplicationFactory<Program>
     private readonly bool _seedDemo;
     private readonly bool _trustProxy;
     private readonly string? _remoteIp;
+    private readonly int _proxyHops;
 
     // Tokens are issued by the fake clock (Jan 2026) but SignalR checks their expiry against the real clock
     // when it closes sockets on expiry, so the default lifetime is long enough to still be valid "now".
@@ -87,13 +88,14 @@ public sealed class TestApp : WebApplicationFactory<Program>
     }
 
     public static TestApp With(int loginLimit = 10_000, bool platformEnabled = true, int jwtMinutes = LongLivedMinutes,
-        bool realPublisher = false, string? postgres = null, int platformLimit = 10_000, bool seedDemo = false, bool trustProxy = false, string? remoteIp = null) =>
-        new(loginLimit, platformLimit, platformEnabled, jwtMinutes, realPublisher, postgres, seedDemo, trustProxy, remoteIp);
+        bool realPublisher = false, string? postgres = null, int platformLimit = 10_000, bool seedDemo = false, bool trustProxy = false, string? remoteIp = null, int proxyHops = 1) =>
+        new(loginLimit, platformLimit, platformEnabled, jwtMinutes, realPublisher, postgres, seedDemo, trustProxy, remoteIp, proxyHops);
 
-    private TestApp(int loginLimit, int platformLimit, bool platformEnabled, int jwtMinutes, bool realPublisher, string? postgres, bool seedDemo, bool trustProxy, string? remoteIp)
+    private TestApp(int loginLimit, int platformLimit, bool platformEnabled, int jwtMinutes, bool realPublisher, string? postgres, bool seedDemo, bool trustProxy, string? remoteIp, int proxyHops = 1)
     {
         _trustProxy = trustProxy;
         _remoteIp = remoteIp;
+        _proxyHops = proxyHops;
         _loginLimit = loginLimit;
         _platformLimit = platformLimit;
         _platformEnabled = platformEnabled;
@@ -130,6 +132,7 @@ public sealed class TestApp : WebApplicationFactory<Program>
         builder.UseSetting("RateLimit:PlatformPerMinute", _platformLimit.ToString());
         builder.UseSetting("Seed:Demo", _seedDemo ? "true" : "false");
         builder.UseSetting("Proxy:TrustForwardedHeaders", _trustProxy ? "true" : "false");
+        builder.UseSetting("Proxy:ForwardLimit", _proxyHops.ToString());
 
         builder.ConfigureTestServices(services =>
         {

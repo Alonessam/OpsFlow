@@ -122,6 +122,33 @@ public class HttpEdgeTests : IClassFixture<TestApp>
     }
 
     [Fact]
+    public async Task Behind_two_proxies_the_limit_follows_the_real_client_even_when_the_outer_proxy_address_changes()
+    {
+        // Live shape (found on Render): client -> Cloudflare edge -> Render -> app. Each hop appends what it saw, so the app gets
+        // "<client-written>, <real client>, <edge>", and the edge address differs from request to request.
+        using var app = TestApp.With(loginLimit: 3, trustProxy: true, remoteIp: "203.0.113.9", proxyHops: 2);
+
+        var results = new List<HttpStatusCode>();
+        for (var i = 0; i < 4; i++) results.Add(await BadLogin(app, $"6.6.6.{i}, 198.51.100.1, 172.70.0.{i + 1}"));
+        var otherClient = await BadLogin(app, "6.6.6.9, 198.51.100.2, 172.70.0.1");
+
+        Assert.Equal(HttpStatusCode.TooManyRequests, results[3]);
+        Assert.Equal(HttpStatusCode.Unauthorized, otherClient);
+    }
+
+    [Fact]
+    public async Task With_the_default_single_proxy_hop_the_outer_address_is_what_the_limit_sees()
+    {
+        // Documents why Proxy:ForwardLimit exists: one hop assumed, two present -> the changing edge address is the key.
+        using var app = TestApp.With(loginLimit: 3, trustProxy: true, remoteIp: "203.0.113.9", proxyHops: 1);
+
+        var results = new List<HttpStatusCode>();
+        for (var i = 0; i < 4; i++) results.Add(await BadLogin(app, $"198.51.100.1, 172.70.0.{i + 1}"));
+
+        Assert.DoesNotContain(HttpStatusCode.TooManyRequests, results);
+    }
+
+    [Fact]
     public async Task Without_a_trusted_proxy_forwarded_for_is_ignored_entirely_so_it_cannot_be_used_to_dodge_the_limit()
     {
         using var app = TestApp.With(loginLimit: 3, trustProxy: false, remoteIp: "203.0.113.9");
