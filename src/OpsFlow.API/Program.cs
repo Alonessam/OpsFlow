@@ -230,16 +230,6 @@ app.MapGet("/api/meta", (IConfiguration cfg) => cfg.GetValue("Seed:Demo", false)
 // ("{**path}" instead of the default pattern, which deliberately skips paths that look like files such as /favicon.ico.)
 app.MapFallback("{**path}", () => Results.NotFound()).AllowAnonymous();
 
-// TEMPORARY DIAGNOSTIC (remove): shows what the proxy chain looks like to the app.
-app.MapGet("/diag/ip", (HttpContext c) => Results.Ok(new
-{
-    remote = c.Connection.RemoteIpAddress?.ToString(),
-    originalFor = c.Request.Headers["X-Original-For"].ToString(),
-    xff = c.Request.Headers["X-Forwarded-For"].ToString(),
-    limit = config.GetValue("Proxy:ForwardLimit", 1),
-    trust = config.GetValue("Proxy:TrustForwardedHeaders", false)
-})).AllowAnonymous();
-
 app.MapGet("/health", async (OpsFlowDbContext db, CancellationToken ct) =>
         await db.Database.CanConnectAsync(ct) ? Results.Ok(new { status = "healthy" }) : Results.StatusCode(503))
     .AllowAnonymous();
