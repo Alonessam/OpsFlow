@@ -3,7 +3,7 @@
     <ProjectReference Include="..\OpsFlow.Core\OpsFlow.Core.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="10.0.12" />
